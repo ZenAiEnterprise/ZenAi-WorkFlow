@@ -1,90 +1,59 @@
-import 'dotenv/config'
 import express from 'express'
-import cors from 'cors'
-import Anthropic from '@anthropic-ai/sdk'
-
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error('❌  ANTHROPIC_API_KEY is not set.')
-  console.error('    Copy .env.example to .env and add your key.')
-  process.exit(1)
-}
+import { createServer } from 'http'
+import { WebSocketServer, WebSocket } from 'ws'
+import * as pty from 'node-pty'
 
 const app = express()
-app.use(cors())
-app.use(express.json())
-
-const client = new Anthropic()
-
-const SYSTEM_PROMPT =
-  'You are Claude, an AI assistant integrated into the ZenAi WorkFlow terminal. ' +
-  'Help users with their workflow: answer questions, write and review code, ' +
-  'explain concepts, and assist with any task. ' +
-  'Keep responses concise and direct — this is a terminal interface. ' +
-  'Use plain text for simple answers and fenced code blocks for code.'
+const httpServer = createServer(app)
 
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', model: 'claude-opus-4-6' })
+  res.json({ status: 'ok', terminal: 'claude' })
 })
 
-app.post('/api/chat', async (req, res) => {
-  const { messages } = req.body as {
-    messages: Array<{ role: 'user' | 'assistant'; content: string }>
-  }
+const wss = new WebSocketServer({ server: httpServer, path: '/ws' })
 
-  if (!Array.isArray(messages) || messages.length === 0) {
-    res.status(400).json({ error: 'messages must be a non-empty array' })
-    return
-  }
+wss.on('connection', (ws: WebSocket) => {
+  const ptyProcess = pty.spawn('claude', [], {
+    name: 'xterm-256color',
+    cols: 80,
+    rows: 24,
+    cwd: process.env.HOME ?? process.cwd(),
+    env: process.env as Record<string, string>,
+  })
 
-  res.setHeader('Content-Type', 'text/event-stream')
-  res.setHeader('Cache-Control', 'no-cache')
-  res.setHeader('Connection', 'keep-alive')
-  res.flushHeaders()
+  ptyProcess.onData((data: string) => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(data)
+  })
 
-  const send = (payload: object) =>
-    res.write(`data: ${JSON.stringify(payload)}\n\n`)
+  ptyProcess.onExit(() => {
+    if (ws.readyState === WebSocket.OPEN) ws.close()
+  })
 
-  try {
-    const stream = client.messages.stream({
-      model: 'claude-opus-4-6',
-      max_tokens: 64000,
-      thinking: { type: 'adaptive' },
-      system: [
-        {
-          type: 'text',
-          text: SYSTEM_PROMPT,
-          cache_control: { type: 'ephemeral' },
-        },
-      ],
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
-    })
-
-    for await (const event of stream) {
-      if (
-        event.type === 'content_block_delta' &&
-        event.delta.type === 'text_delta'
-      ) {
-        send({ type: 'text', text: event.delta.text })
+  ws.on('message', (msg: Buffer) => {
+    try {
+      const { type, data } = JSON.parse(msg.toString()) as {
+        type: string
+        data: string | { cols: number; rows: number }
       }
+      if (type === 'input') {
+        ptyProcess.write(data as string)
+      } else if (type === 'resize') {
+        const { cols, rows } = data as { cols: number; rows: number }
+        ptyProcess.resize(cols, rows)
+      }
+    } catch {
+      /* ignore malformed messages */
     }
+  })
 
-    res.write('data: [DONE]\n\n')
-  } catch (err) {
-    const message =
-      err instanceof Anthropic.APIError
-        ? `Claude API error (${err.status}): ${err.message}`
-        : err instanceof Error
-          ? err.message
-          : 'Unknown error'
-    send({ type: 'error', message })
-  } finally {
-    res.end()
-  }
+  ws.on('close', () => {
+    try { ptyProcess.kill() } catch { /* already dead */ }
+  })
 })
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10)
-app.listen(PORT, () => {
-  console.log(`\n🚀  ZenAi WorkFlow API   http://localhost:${PORT}`)
-  console.log(`🤖  Model               claude-opus-4-6`)
-  console.log(`✅  Ready\n`)
+httpServer.listen(PORT, () => {
+  console.log(`\n🚀  ZenAi WorkFlow server   http://localhost:${PORT}`)
+  console.log(`🖥️   Claude terminal via pty  (no API key needed)`)
+  console.log(`✅  Open http://localhost:5173\n`)
 })
