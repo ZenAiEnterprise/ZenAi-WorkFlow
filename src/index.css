@@ -4,23 +4,159 @@
   padding: 0;
 }
 
-html,
-body,
-#root {
+:root {
+  --bg:           #0a0a14;
+  --surface:      #11111e;
+  --card:         #17172a;
+  --border:       #24243c;
+  --hover:        #1f1f35;
+  --primary:      #7c3aed;
+  --primary-h:    #6d28d9;
+  --accent:       #38bdf8;
+  --success:      #10b981;
+  --warning:      #f59e0b;
+  --danger:       #ef4444;
+  --text:         #f0f0fa;
+  --text-muted:   #94a3b8;
+  --text-subtle:  #64748b;
+}
+
+html, body, #root {
   height: 100%;
 }
 
 body {
-  background: #11111b;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-.app-shell {
-  width: 100%;
-  max-width: 920px;
-  height: calc(100vh - 48px);
-  min-height: 400px;
+/* ── App Layout ───────────────────────────────────────────── */
+.crm-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
 }
+
+.crm-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ── Top Bar ──────────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  height: 60px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.topbar-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbar-date {
+  font-size: 12.5px;
+  color: var(--text-subtle);
+  text-transform: capitalize;
+}
+
+.topbar-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #a78bfa;
+}
+
+.topbar-badge-dot {
+  width: 6px;
+  height: 6px;
+  background: #10b981;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* ── Content area ─────────────────────────────────────────── */
+.crm-content {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 28px;
+}
+
+/* ── Scrollbar styling ────────────────────────────────────── */
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-subtle); }
+
+/* ── Shared form controls (Pipeline + Contacts) ──────────────── */
+select option {
+  background: var(--card);
+  color: var(--text);
+}
+
+.pipe-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+
+.pipe-search {
+  width: 100%;
+  padding: 9px 12px 9px 38px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+
+.pipe-search::placeholder { color: var(--text-subtle); }
+.pipe-search:focus        { border-color: rgba(139, 92, 246, 0.5); }
+
+.pipe-select {
+  padding: 9px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+
+.pipe-select:focus { border-color: rgba(139, 92, 246, 0.5); color: var(--text); }
